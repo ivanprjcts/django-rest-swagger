@@ -542,6 +542,11 @@ def get_primitive_type(var):
 def get_data_type(field):
     # (in swagger 2.0 we might get to use the descriptive types..
     from rest_framework import fields
+    try:
+        from drf_extra_fields.fields import Base64ImageField
+    except ImportError:
+        Base64ImageField = None
+
     if isinstance(field, fields.BooleanField):
         return 'boolean', 'boolean'
     elif hasattr(fields, 'NullBooleanField') and isinstance(field, fields.NullBooleanField):
@@ -574,6 +579,8 @@ def get_data_type(field):
         # return 'string', 'string' # 'file upload'
     # elif isinstance(field, fields.CharField):
         # return 'string', 'string'
+    elif Base64ImageField is not None and isinstance(field, Base64ImageField):
+        return 'string', 'base64'
     elif rest_framework.VERSION >= '3.0.0':
         if isinstance(field, fields.HiddenField):
             return 'hidden', 'hidden'
