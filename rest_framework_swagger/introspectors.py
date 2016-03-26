@@ -18,6 +18,7 @@ from django.utils.encoding import smart_text
 import rest_framework
 from rest_framework import viewsets
 from rest_framework.compat import apply_markdown
+from rest_framework.serializers import BaseSerializer
 try:
     from rest_framework.fields import CurrentUserDefault
 except ImportError:
@@ -479,6 +480,38 @@ class BaseMethodIntrospector(object):
                     f['enum'] = [k for k, v in field.choices]
                 elif isinstance(field.choices, dict):
                     f['enum'] = [k for k, v in field.choices.items()]
+
+            # Support for complex types
+            if rest_framework.VERSION < '3.0.0':
+                has_many = hasattr(field, 'many') and field.many
+            else:
+                from rest_framework.serializers import ListSerializer, ManyRelatedField
+
+                has_many = isinstance(field, (ListSerializer, ManyRelatedField))
+
+            field_serializer = None
+            if isinstance(field, BaseSerializer):
+                field_serializer = IntrospectorHelper.get_serializer_name(field)
+
+                if not getattr(field, 'read_only', False):
+                    field_serializer = "Write{}".format(field_serializer)
+
+                f['type'] = field_serializer
+
+            if has_many:
+                f['type'] = 'array'
+                if field_serializer:
+                    f['items'] = {'$ref': field_serializer}
+                else:
+                    i = {
+                        'type': data_type,
+                        'format': data_format,
+                    }
+                    if i['type'] == i['format']:
+                        del i['format']
+
+                    f['items'] = i
+                    f['collectionFormat'] = 'multi'
 
             data.append(f)
 
